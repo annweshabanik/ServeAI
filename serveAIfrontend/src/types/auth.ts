@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "chef" | "waiter";
+export type UserRole = "superadmin" | "admin" | "chef" | "waiter";
 
 export interface AuthUser {
   id: string;
@@ -6,6 +6,8 @@ export interface AuthUser {
   email: string;
   password: string;
   role: UserRole;
+  tenantId?: string;
+  tenantName?: string;
 }
 
 export type SafeAuthUser = Omit<AuthUser, "password">;

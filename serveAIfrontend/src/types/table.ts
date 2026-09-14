@@ -7,3 +7,5 @@ export interface Table {
   qrCode: string;
   currentOrderId?: string;
 }
+
+export type Room = Table;

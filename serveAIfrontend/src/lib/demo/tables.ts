@@ -9,3 +9,5 @@ export const tables: Table[] = [
   { id: "table-12", name: "Table 12", type: "Table", occupied: false, active: true, qrCode: "QR-T12" },
   { id: "pool", name: "Pool Deck", type: "Table", occupied: true, active: false, qrCode: "QR-POOL", currentOrderId: "ORD-2404" },
 ];
+
+export const rooms = tables;

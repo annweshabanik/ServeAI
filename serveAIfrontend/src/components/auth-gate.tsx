@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LoadingState } from "@/components/app-components";
@@ -13,17 +13,36 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<ReturnType<typeof getCurrentUser> | null>(null);
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-    setMounted(true);
+  const syncUser = useCallback(() => {
+    const current = getCurrentUser();
+    setUser(current);
+    return current;
   }, []);
+
+  useEffect(() => {
+    syncUser();
+    setMounted(true);
+
+    const handleAuthChange = () => {
+      syncUser();
+    };
+
+    window.addEventListener("auth-change", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, [syncUser]);
 
   const isLoginRoute = pathname === "/" || pathname.startsWith("/auth");
 
   useEffect(() => {
     if (!mounted) return;
 
-    if (!user) {
+    const currentUser = syncUser();
+
+    if (!currentUser) {
       if (!isLoginRoute) {
         toast.error("Please log in to continue");
         router.replace("/auth/login");
@@ -32,15 +51,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     if (isLoginRoute) {
-      router.replace(getDefaultRouteByRole(user.role));
+      router.replace(getDefaultRouteByRole(currentUser.role));
       return;
     }
 
-    if (!canAccessRoute(user.role, pathname)) {
+    if (!canAccessRoute(currentUser.role, pathname)) {
       toast.error("You do not have access to that area");
-      router.replace(getDefaultRouteByRole(user.role));
+      router.replace(getDefaultRouteByRole(currentUser.role));
     }
-  }, [mounted, isLoginRoute, pathname, router, user]);
+  }, [mounted, isLoginRoute, pathname, router, syncUser]);
 
   if (!mounted) {
     return (
@@ -50,8 +69,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const allowed = user
-    ? !isLoginRoute && canAccessRoute(user.role, pathname)
+  const currentUser = getCurrentUser();
+  const allowed = currentUser
+    ? !isLoginRoute && canAccessRoute(currentUser.role, pathname)
     : isLoginRoute;
 
   if (!allowed) {

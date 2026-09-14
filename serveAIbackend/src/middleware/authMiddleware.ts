@@ -20,5 +20,16 @@ export const authenticate = asyncHandler(
         }
 
         const decoded = verifyToken(token);
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            include: { tenant: true },
+        });
+
+        if (!user) {
+            throw new AppError('The user belonging to this token no longer exists.', 401);
+        }
+
+        req.user = user;
+        next();
     }
-)
+);

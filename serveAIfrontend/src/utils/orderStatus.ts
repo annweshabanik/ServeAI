@@ -19,7 +19,8 @@ export function statusTone(status: OrderStatus) {
     "Out For Delivery": "bg-indigo-100 text-indigo-800 border-indigo-200",
     Delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
     "Feedback Pending": "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
+    Delayed: "bg-rose-500 text-white border-rose-600",
   };
 
-  return tones[status];
+  return tones[status] || "bg-charcoal-100 text-charcoal-800 border-charcoal-200";
 }

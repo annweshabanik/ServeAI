@@ -12,17 +12,17 @@ import { cn } from "@/lib/utils";
 interface OrderCardProps {
   order: Order;
   editable?: boolean;
-  isSelected: boolean;
+  isSelected?: boolean;
   showCheckbox?: boolean;
-  onSelectToggle: () => void;
+  onSelectToggle?: () => void;
 }
 
 export function OrderCard({
   order,
   editable = false,
-  isSelected,
+  isSelected = false,
   showCheckbox = true,
-  onSelectToggle,
+  onSelectToggle = () => {},
 }: OrderCardProps) {
   // Hook usage integration (SLA live timer setup for orders with 'Ready' status)
   const { isDelayed, formattedTime } = useOrderTimer({

@@ -51,7 +51,7 @@ export function LoginForm() {
         <SectionCard className="bg-white text-charcoal-950">
           <h2 className="text-2xl font-black">Login</h2>
           <p className="mt-2 text-sm text-charcoal-500">Use one of the demo accounts below.</p>
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit((values) => login(values.email, values.password))}>
+          <form className="mt-6 grid gap-4" onSubmit={handleSubmit(async (values) => { await login(values.email, values.password); })}>
             <label className="grid gap-2 text-sm font-bold">
               Email
               <span className="relative">
