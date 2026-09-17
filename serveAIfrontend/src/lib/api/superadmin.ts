@@ -6,6 +6,7 @@ export interface TenantApiRecord {
   id: string;
   name: string;
   slug: string | null;
+  loginId: string;
   address: string | null;
   phone: string | null;
   isActive: boolean;
@@ -32,6 +33,7 @@ export interface UpdateTenantPayload {
   address?: string;
   phone?: string;
   isActive?: boolean;
+  adminName?: string;
 }
 
 export interface SuperAdminStats {
@@ -46,6 +48,7 @@ export const DEFAULT_TENANTS: TenantApiRecord[] = [
     id: "c3e89088-171f-435a-93fa-0b57a388b143",
     name: "Grand Lotus Hotel",
     slug: "grand-lotus-hotel",
+    loginId: "Lotus@7K2",
     address: "MG Road, Bengaluru",
     phone: "+91 9876543210",
     isActive: true,
@@ -59,6 +62,7 @@ export const DEFAULT_TENANTS: TenantApiRecord[] = [
     id: "e39c15ad-d39a-4475-8fe4-ab34dc0d3777",
     name: "Baba Ka Dhaba",
     slug: "baba-ka-dhaba",
+    loginId: "Baba#91A",
     address: "Malviya Nagar, New Delhi",
     phone: "+91 9123456789",
     isActive: true,
@@ -157,10 +161,13 @@ export async function createTenantApi(data: CreateTenantPayload): Promise<{ tena
   } catch (err: any) {
     // Local fallback creation if backend is offline
     const generatedId = `tenant-${Date.now().toString(36)}`;
+    const cleanPrefix = data.name.trim().split(/\s+/)[0].slice(0, 5);
+    const mockLoginId = `${cleanPrefix}#${Math.floor(100 + Math.random() * 900)}`;
     const newTenantRecord: TenantApiRecord = {
       id: generatedId,
       name: data.name.trim(),
       slug: data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      loginId: mockLoginId,
       address: data.address || null,
       phone: data.phone || null,
       isActive: true,
@@ -185,9 +192,56 @@ export async function createTenantApi(data: CreateTenantPayload): Promise<{ tena
 }
 
 export async function updateTenantApi(id: string, data: UpdateTenantPayload): Promise<TenantApiRecord> {
-  const headers = await getAuthHeader();
-  const res = await axios.put(`${API_BASE}/superadmin/tenants/${id}`, data, { headers });
-  return res.data.data.tenant;
+  try {
+    const headers = await getAuthHeader();
+    const res = await axios.put(`${API_BASE}/superadmin/tenants/${id}`, data, { headers });
+    return res.data.data.tenant;
+  } catch (err) {
+    console.warn("API update error, using local fallback", err);
+    let updatedRecord: TenantApiRecord | null = null;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("serveai:tenants");
+      if (stored) {
+        try {
+          const parsed: TenantApiRecord[] = JSON.parse(stored);
+          const updated = parsed.map((t) => {
+            if (t.id === id) {
+              const u = {
+                ...t,
+                ...(data.name && { name: data.name }),
+                ...(data.address !== undefined && { address: data.address }),
+                ...(data.phone !== undefined && { phone: data.phone }),
+                ...(data.adminName !== undefined && { adminName: data.adminName }),
+                ...(data.isActive !== undefined && { isActive: data.isActive }),
+                updatedAt: new Date().toISOString(),
+              };
+              updatedRecord = u;
+              return u;
+            }
+            return t;
+          });
+          localStorage.setItem("serveai:tenants", JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+      }
+    }
+    if (updatedRecord) return updatedRecord;
+    return {
+      id,
+      name: data.name || "Restaurant",
+      slug: data.slug || null,
+      loginId: "Restro#101",
+      address: data.address || null,
+      phone: data.phone || null,
+      isActive: data.isActive ?? true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userCount: 1,
+      adminEmail: null,
+      adminName: data.adminName || null,
+    };
+  }
 }
 
 export async function toggleTenantStatusApi(id: string, isActive: boolean): Promise<TenantApiRecord> {
@@ -204,6 +258,7 @@ export async function toggleTenantStatusApi(id: string, isActive: boolean): Prom
       id,
       name: "Tenant",
       slug: null,
+      loginId: "Restro#101",
       address: null,
       phone: null,
       isActive,

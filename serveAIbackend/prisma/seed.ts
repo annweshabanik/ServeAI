@@ -34,12 +34,18 @@ async function main() {
       data: {
         name: 'Grand Lotus Hotel',
         slug: 'grand-lotus-hotel',
+        loginId: 'Lotus@7K2',
         address: 'MG Road, Bengaluru',
         phone: '+91 9876543210',
         isActive: true,
       },
     });
-    console.log('✅ Tenant 1 Created:', tenant1.name, 'ID:', tenant1.id);
+    console.log('✅ Tenant 1 Created:', tenant1.name, 'ID:', tenant1.id, 'Login ID:', tenant1.loginId);
+  } else if (!tenant1.loginId) {
+    tenant1 = await prisma.tenant.update({
+      where: { id: tenant1.id },
+      data: { loginId: 'Lotus@7K2' },
+    });
   }
 
   // Create Admin for Tenant 1
@@ -66,12 +72,18 @@ async function main() {
       data: {
         name: 'Baba Ka Dhaba',
         slug: 'baba-ka-dhaba',
+        loginId: 'Baba#91A',
         address: 'Malviya Nagar, New Delhi',
         phone: '+91 9123456789',
         isActive: true,
       },
     });
-    console.log('✅ Tenant 2 Created:', tenant2.name, 'ID:', tenant2.id);
+    console.log('✅ Tenant 2 Created:', tenant2.name, 'ID:', tenant2.id, 'Login ID:', tenant2.loginId);
+  } else if (!tenant2.loginId) {
+    tenant2 = await prisma.tenant.update({
+      where: { id: tenant2.id },
+      data: { loginId: 'Baba#91A' },
+    });
   }
 
   // Create Admin for Tenant 2

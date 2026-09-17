@@ -1,16 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChefHat, Lock, Mail } from "lucide-react";
+import { ChefHat, Lock, KeyRound } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { SectionCard } from "@/components/app-components";
-import {buttonVariants, Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { mockUsers } from "@/lib/demo/users";
 import { useAuth } from "@/hooks/useAuth";
 
 const loginSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
+  identifier: z.string().min(1, "Login ID or Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -24,7 +24,7 @@ export function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
 
   return (
@@ -50,20 +50,29 @@ export function LoginForm() {
 
         <SectionCard className="bg-white text-charcoal-950">
           <h2 className="text-2xl font-black">Login</h2>
-          <p className="mt-2 text-sm text-charcoal-500">Use one of the demo accounts below.</p>
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit(async (values) => { await login(values.email, values.password); })}>
+          <p className="mt-2 text-sm text-charcoal-500">Sign in with your Tenant Login ID or Super Admin Email.</p>
+          <form
+            className="mt-6 grid gap-4"
+            onSubmit={handleSubmit(async (values) => {
+              await login(values.identifier, values.password);
+            })}
+          >
             <label className="grid gap-2 text-sm font-bold">
-              Email
+              Login ID / Email
               <span className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-charcoal-400" />
+                <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-charcoal-400" />
                 <input
-                  {...register("email")}
+                  {...register("identifier")}
                   className="h-12 w-full rounded-2xl border border-charcoal-100 pl-10 pr-3 outline-none focus:border-lime-400 focus:ring-4 focus:ring-lime-100"
-                  placeholder="admin@serveai.com"
-                  type="email"
+                  placeholder="e.g. Lotus@7K2 or superadmin@serveai.com"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
                 />
               </span>
-              {errors.email ? <span className="text-xs font-bold text-rose-600">{errors.email.message}</span> : null}
+              {errors.identifier ? (
+                <span className="text-xs font-bold text-rose-600">{errors.identifier.message}</span>
+              ) : null}
             </label>
             <label className="grid gap-2 text-sm font-bold">
               Password
@@ -76,7 +85,9 @@ export function LoginForm() {
                   type="password"
                 />
               </span>
-              {errors.password ? <span className="text-xs font-bold text-rose-600">{errors.password.message}</span> : null}
+              {errors.password ? (
+                <span className="text-xs font-bold text-rose-600">{errors.password.message}</span>
+              ) : null}
             </label>
             <Button className="h-12 w-full" disabled={isSubmitting} type="submit">
               Login
@@ -85,11 +96,15 @@ export function LoginForm() {
           <div className="mt-6 rounded-3xl bg-lime-50 p-4">
             <p className="text-sm font-black text-lime-800">Demo credentials</p>
             <div className="mt-3 grid gap-2">
-              {mockUsers.map((user) => (
-                <div key={user.id} className="rounded-2xl bg-white p-3 text-xs font-bold text-charcoal-600">
-                  <span className="capitalize text-charcoal-950">{user.role}</span> · {user.email} · {user.password}
-                </div>
-              ))}
+              <div className="rounded-2xl bg-white p-3 text-xs font-bold text-charcoal-600">
+                <span className="capitalize text-charcoal-950">Superadmin</span> · superadmin@serveai.com · superadmin123
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-xs font-bold text-charcoal-600">
+                <span className="capitalize text-charcoal-950">Tenant Admin</span> · Login ID: <code className="rounded bg-lime-100 px-1 py-0.5 font-mono text-lime-900">Lotus@7K2</code> · admin123
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-xs font-bold text-charcoal-600">
+                <span className="capitalize text-charcoal-950">Tenant 2 Admin</span> · Login ID: <code className="rounded bg-lime-100 px-1 py-0.5 font-mono text-lime-900">Baba#91A</code> · admin123
+              </div>
             </div>
           </div>
         </SectionCard>

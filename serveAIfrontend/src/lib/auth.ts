@@ -30,13 +30,14 @@ export function getCurrentUser(): SafeAuthUser | null {
   }
 }
 
-export async function loginUser(email: string, password: string): Promise<SafeAuthUser | null> {
+export async function loginUser(identifier: string, password: string): Promise<SafeAuthUser | null> {
   if (!isBrowser()) return null;
 
   try {
     // 1. Try authenticating with backend API
     const response = await axios.post(`${API_BASE}/auth/login`, {
-      email: email.trim(),
+      identifier: identifier.trim(),
+      email: identifier.trim(),
       password: password.trim(),
     });
 
@@ -67,7 +68,8 @@ export async function loginUser(email: string, password: string): Promise<SafeAu
   // 2. Local fallback check
   const candidate = mockUsers.find(
     (u) =>
-      u.email.toLowerCase() === email.trim().toLowerCase() &&
+      (u.email.toLowerCase() === identifier.trim().toLowerCase() ||
+       (u as any).loginId === identifier.trim()) &&
       u.password === password
   );
 

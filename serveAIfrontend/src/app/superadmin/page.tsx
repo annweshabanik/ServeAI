@@ -3,10 +3,13 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Building2,
+  Check,
   CheckCircle2,
+  Copy,
   Crown,
   KeyRound,
   Loader2,
+  Pencil,
   PlusCircle,
   Power,
   RefreshCw,
@@ -15,16 +18,19 @@ import {
   Store,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SuperAdminShell } from "@/components/common/SuperAdminShell";
 import { CreateTenantModal, CreateTenantFormValues } from "@/components/superadmin/CreateTenantModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/utils/cn";
 import {
   fetchTenants,
   fetchSuperAdminStats,
   createTenantApi,
+  updateTenantApi,
   toggleTenantStatusApi,
   deleteTenantApi,
   TenantApiRecord,
@@ -38,6 +44,16 @@ export default function SuperAdminPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Inline editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    adminName: "",
+    phone: "",
+    address: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadData = useCallback(async (isRefresh = false) => {
     try {
@@ -74,12 +90,55 @@ export default function SuperAdminPage() {
   const handleCreateTenant = async (values: CreateTenantFormValues) => {
     try {
       const res = await createTenantApi(values);
-      toast.success(`Property "${res.tenant.name}" & Admin account created successfully!`);
       await loadData(true);
+      return res;
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || "Failed to create restaurant";
       toast.error(errorMsg);
       throw new Error(errorMsg);
+    }
+  };
+
+  const startEditing = (t: TenantApiRecord) => {
+    setEditingId(t.id);
+    setEditFormData({
+      name: t.name,
+      adminName: t.adminName || "",
+      phone: t.phone || "",
+      address: t.address || "",
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditFormData({ name: "", adminName: "", phone: "", address: "" });
+  };
+
+  const saveEditing = async (tenantId: string) => {
+    if (!editFormData.name.trim()) {
+      toast.error("Restaurant property name cannot be empty");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      const updatedTenant = await updateTenantApi(tenantId, {
+        name: editFormData.name.trim(),
+        adminName: editFormData.adminName.trim(),
+        phone: editFormData.phone.trim(),
+        address: editFormData.address.trim(),
+      });
+
+      setTenants((prev) =>
+        prev.map((t) => (t.id === tenantId ? { ...t, ...updatedTenant } : t))
+      );
+
+      toast.success(`Property "${editFormData.name}" updated successfully!`);
+      setEditingId(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || "Failed to update property");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -117,6 +176,7 @@ export default function SuperAdminPage() {
       (t) =>
         t.name.toLowerCase().includes(q) ||
         t.id.toLowerCase().includes(q) ||
+        (t.loginId && t.loginId.toLowerCase().includes(q)) ||
         (t.adminEmail && t.adminEmail.toLowerCase().includes(q)) ||
         (t.adminName && t.adminName.toLowerCase().includes(q)) ||
         (t.address && t.address.toLowerCase().includes(q))
@@ -141,7 +201,7 @@ export default function SuperAdminPage() {
                 Property & Restaurant Control Center
               </h1>
               <p className="text-sm font-semibold text-charcoal-600 max-w-xl">
-                Real-time API & Database powered tenant creation and management. Provision properties along with their bound login credentials directly into PostgreSQL.
+                Real-time API & Database powered tenant creation and inline property editing. Provision properties along with auto-generated unique Login IDs into PostgreSQL.
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -230,13 +290,13 @@ export default function SuperAdminPage() {
                 All Property / Restaurant Tenants
               </h2>
               <p className="text-xs font-semibold text-charcoal-500">
-                Fetched directly via `/api/v1/superadmin/tenants`
+                Managed via `/api/v1/superadmin/tenants` with unique server-generated Login IDs
               </p>
             </div>
 
             <div className="relative w-full sm:w-72">
               <Input
-                placeholder="Search by name, ID, or email..."
+                placeholder="Search by name, Login ID, or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="rounded-2xl border-charcoal-200 bg-charcoal-50/50 pl-9 font-semibold text-sm focus-visible:ring-lime-400"
@@ -249,7 +309,8 @@ export default function SuperAdminPage() {
             <table className="w-full text-left text-sm text-charcoal-700">
               <thead className="bg-charcoal-50 text-xs font-black uppercase text-charcoal-500 border-b border-charcoal-100">
                 <tr>
-                  <th className="px-4 py-3.5">Tenant ID & Name</th>
+                  <th className="px-4 py-3.5">Tenant Name & ID</th>
+                  <th className="px-4 py-3.5">Login ID</th>
                   <th className="px-4 py-3.5">Admin Credentials</th>
                   <th className="px-4 py-3.5">Location / Contact</th>
                   <th className="px-4 py-3.5 text-center">Users</th>
@@ -261,7 +322,7 @@ export default function SuperAdminPage() {
               <tbody className="divide-y divide-charcoal-100 font-semibold">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-charcoal-500">
+                    <td colSpan={8} className="px-4 py-16 text-center text-charcoal-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="size-5 animate-spin text-lime-600" />
                         <span className="font-bold text-sm">Fetching properties from database...</span>
@@ -270,92 +331,241 @@ export default function SuperAdminPage() {
                   </tr>
                 ) : filteredTenants.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-charcoal-400">
+                    <td colSpan={8} className="px-4 py-12 text-center text-charcoal-400">
                       No restaurant properties found in database.
                     </td>
                   </tr>
                 ) : (
-                  filteredTenants.map((t) => (
-                    <tr key={t.id} className="hover:bg-charcoal-50/60 transition-colors">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-lime-100 text-lime-900 font-black text-xs">
-                            <Building2 className="size-5" />
+                  filteredTenants.map((t) => {
+                    const isEditing = editingId === t.id;
+
+                    return (
+                      <tr
+                        key={t.id}
+                        className={cn(
+                          "transition-colors",
+                          isEditing
+                            ? "bg-lime-50/60 ring-2 ring-lime-400/80"
+                            : "hover:bg-charcoal-50/60"
+                        )}
+                      >
+                        {/* Property Name & ID */}
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-lime-100 text-lime-900 font-black text-xs">
+                              <Building2 className="size-5" />
+                            </div>
+                            <div className="w-full">
+                              {isEditing ? (
+                                <Input
+                                  value={editFormData.name}
+                                  onChange={(e) =>
+                                    setEditFormData((prev) => ({ ...prev, name: e.target.value }))
+                                  }
+                                  placeholder="Restaurant Name"
+                                  className="h-9 w-full rounded-xl border-lime-300 bg-white font-black text-sm text-charcoal-950 focus-visible:ring-lime-400"
+                                />
+                              ) : (
+                                <p className="font-extrabold text-charcoal-950 text-sm">{t.name}</p>
+                              )}
+                              <p className="font-mono text-xs text-charcoal-500 flex items-center gap-1 mt-0.5">
+                                <span className="rounded bg-charcoal-100 px-1 py-0.2 text-[10px] font-bold">
+                                  ID: {t.id}
+                                </span>
+                              </p>
+                            </div>
                           </div>
+                        </td>
+
+                        {/* Login ID Column with Copy Action */}
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <code className="rounded-xl bg-charcoal-950 px-2.5 py-1 font-mono text-xs font-black text-lime-400 border border-charcoal-800 shadow-xs">
+                              {t.loginId || "N/A"}
+                            </code>
+                            {t.loginId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(t.loginId);
+                                    toast.success("Login ID copied to clipboard!");
+                                  } catch {
+                                    toast.error("Failed to copy Login ID");
+                                  }
+                                }}
+                                title="Copy Login ID"
+                                className="h-7 w-7 p-0 text-charcoal-500 hover:bg-lime-100 hover:text-lime-900 rounded-lg shrink-0"
+                              >
+                                <Copy className="size-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Admin Info */}
+                        <td className="px-4 py-4">
                           <div>
-                            <p className="font-extrabold text-charcoal-950 text-sm">{t.name}</p>
-                            <p className="font-mono text-xs text-charcoal-500 flex items-center gap-1">
-                              <span className="rounded bg-charcoal-100 px-1 py-0.2 text-[10px] font-bold">
-                                ID: {t.id}
-                              </span>
+                            {isEditing ? (
+                              <Input
+                                value={editFormData.adminName}
+                                onChange={(e) =>
+                                  setEditFormData((prev) => ({
+                                    ...prev,
+                                    adminName: e.target.value,
+                                  }))
+                                }
+                                placeholder="Admin Name"
+                                className="h-9 w-full rounded-xl border-lime-300 bg-white font-bold text-xs text-charcoal-950 focus-visible:ring-lime-400 mb-1"
+                              />
+                            ) : (
+                              <p className="text-xs font-bold text-charcoal-900">
+                                {t.adminName || "N/A"}
+                              </p>
+                            )}
+                            <p className="text-xs font-medium text-charcoal-500 flex items-center gap-1">
+                              <KeyRound className="size-3 text-lime-600" />
+                              {t.adminEmail || "No admin assigned"}
                             </p>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="px-4 py-4">
-                        <div>
-                          <p className="text-xs font-bold text-charcoal-900">{t.adminName || "N/A"}</p>
-                          <p className="text-xs font-medium text-charcoal-500 flex items-center gap-1">
-                            <KeyRound className="size-3 text-lime-600" />
-                            {t.adminEmail || "No admin assigned"}
-                          </p>
-                        </div>
-                      </td>
+                        {/* Location / Contact */}
+                        <td className="px-4 py-4 text-xs">
+                          {isEditing ? (
+                            <div className="space-y-1 w-full min-w-[140px]">
+                              <Input
+                                value={editFormData.address}
+                                onChange={(e) =>
+                                  setEditFormData((prev) => ({
+                                    ...prev,
+                                    address: e.target.value,
+                                  }))
+                                }
+                                placeholder="Address"
+                                className="h-8 rounded-xl border-lime-300 bg-white font-medium text-xs text-charcoal-950 focus-visible:ring-lime-400"
+                              />
+                              <Input
+                                value={editFormData.phone}
+                                onChange={(e) =>
+                                  setEditFormData((prev) => ({
+                                    ...prev,
+                                    phone: e.target.value,
+                                  }))
+                                }
+                                placeholder="Phone Number"
+                                className="h-8 rounded-xl border-lime-300 bg-white font-medium text-xs text-charcoal-950 focus-visible:ring-lime-400"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <p className="font-semibold text-charcoal-800">
+                                {t.address || "No address"}
+                              </p>
+                              <p className="text-charcoal-500">{t.phone || "-"}</p>
+                            </>
+                          )}
+                        </td>
 
-                      <td className="px-4 py-4 text-xs">
-                        <p className="font-semibold text-charcoal-800">{t.address || "No address"}</p>
-                        <p className="text-charcoal-500">{t.phone || "-"}</p>
-                      </td>
-
-                      <td className="px-4 py-4 text-center">
-                        <span className="inline-flex items-center rounded-full bg-charcoal-100 px-2.5 py-1 text-xs font-bold text-charcoal-900">
-                          {t.userCount} users
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {t.isActive ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-100 px-3 py-1 text-xs font-bold text-lime-800">
-                            <span className="size-1.5 rounded-full bg-lime-500 animate-pulse" /> Active
+                        {/* User Count */}
+                        <td className="px-4 py-4 text-center">
+                          <span className="inline-flex items-center rounded-full bg-charcoal-100 px-2.5 py-1 text-xs font-bold text-charcoal-900">
+                            {t.userCount} users
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800">
-                            <span className="size-1.5 rounded-full bg-rose-500" /> Suspended
-                          </span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="px-4 py-4 text-xs text-charcoal-500 whitespace-nowrap">
-                        {new Date(t.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </td>
+                        {/* Status */}
+                        <td className="px-4 py-4">
+                          {t.isActive ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-100 px-3 py-1 text-xs font-bold text-lime-800">
+                              <span className="size-1.5 rounded-full bg-lime-500 animate-pulse" />{" "}
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800">
+                              <span className="size-1.5 rounded-full bg-rose-500" /> Suspended
+                            </span>
+                          )}
+                        </td>
 
-                      <td className="px-4 py-4 text-right whitespace-nowrap space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleStatus(t.id, t.isActive)}
-                          className={t.isActive ? "text-rose-600 hover:bg-rose-50" : "text-lime-700 hover:bg-lime-50"}
-                        >
-                          <Power className="size-4 mr-1" />
-                          {t.isActive ? "Deactivate" : "Activate"}
-                        </Button>
+                        {/* Created Date */}
+                        <td className="px-4 py-4 text-xs text-charcoal-500 whitespace-nowrap">
+                          {new Date(t.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </td>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteTenant(t.id, t.name)}
-                          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                        {/* Action Buttons */}
+                        <td className="px-4 py-4 text-right whitespace-nowrap space-x-1">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => saveEditing(t.id)}
+                                disabled={savingEdit}
+                                className="rounded-xl bg-lime-400 text-charcoal-950 font-extrabold hover:bg-lime-500 h-8 px-3"
+                              >
+                                {savingEdit ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="size-4 mr-1" /> Save
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={cancelEditing}
+                                disabled={savingEdit}
+                                className="rounded-xl text-charcoal-600 hover:bg-charcoal-100 h-8 px-2"
+                              >
+                                <X className="size-4 mr-1" /> Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditing(t)}
+                                title="Edit Property In-Line"
+                                className="text-charcoal-700 hover:bg-lime-100 hover:text-lime-900 rounded-xl"
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleStatus(t.id, t.isActive)}
+                                className={
+                                  t.isActive
+                                    ? "text-rose-600 hover:bg-rose-50 rounded-xl"
+                                    : "text-lime-700 hover:bg-lime-50 rounded-xl"
+                                }
+                              >
+                                <Power className="size-4 mr-1" />
+                                {t.isActive ? "Deactivate" : "Activate"}
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteTenant(t.id, t.name)}
+                                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
