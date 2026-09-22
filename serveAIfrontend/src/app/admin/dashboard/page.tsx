@@ -10,12 +10,39 @@ import { reviews } from "@/lib/demo/reviews";
 import { tables } from "@/lib/demo/tables";
 import { formatCurrency } from "@/utils/formatCurrency";
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function DashboardPage() {
+  const { user } = useAuth();
   const revenue = orders.reduce((sum, order) => sum + order.total, 0);
+  const hotelName = user?.tenantName || "Hotel Property";
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Dashboard" description="Revenue, order movement, room activity, reviews, and AI recommendations in one calm command view." />
+      <div className="rounded-3xl bg-gradient-to-r from-charcoal-950 via-charcoal-900 to-charcoal-950 p-6 text-white shadow-xl">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-lime-400 px-3 py-1 text-xs font-black text-charcoal-950 uppercase tracking-wider">
+                Active Property
+              </span>
+              {user?.tenantLoginId ? (
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-lime-300 backdrop-blur">
+                  Login ID: {user.tenantLoginId}
+                </span>
+              ) : null}
+            </div>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              {hotelName}
+            </h1>
+            <p className="mt-1 text-sm text-white/70">
+              Welcome back, <span className="font-bold text-white">{user?.name || "Admin"}</span>! Here is your property operational overview.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <PageHeader title={`${hotelName} Overview`} description="Revenue, order movement, room activity, reviews, and AI recommendations in one calm command view." />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Revenue" value={formatCurrency(revenue)} detail="+18% vs yesterday" icon={icons.CreditCard} />
         <StatCard label="Total Orders" value={String(orders.length)} detail="3 active right now" icon={icons.ClipboardList} />

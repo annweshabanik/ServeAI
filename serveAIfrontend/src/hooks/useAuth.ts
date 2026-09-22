@@ -40,8 +40,8 @@ export function useAuth() {
       toast.success(`Welcome back, ${loggedInUser.name}`);
       router.replace(getDefaultRouteByRole(loggedInUser.role));
       return true;
-    } catch {
-      toast.error("Invalid email or password");
+    } catch (err: any) {
+      toast.error(err.message || "Invalid email or password");
       return false;
     }
   }, [router]);

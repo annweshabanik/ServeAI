@@ -10,12 +10,23 @@ export const mockUsers: AuthUser[] = [
   },
   {
     id: "user-admin-001",
-    name: "Admin User",
+    name: "Lotus Admin User",
     email: "admin@serveai.com",
     password: "admin123",
     role: "admin",
     tenantId: "tenant-001",
     tenantName: "Grand Lotus Hotel",
+    tenantLoginId: "Lotus@7K2",
+  },
+  {
+    id: "user-admin-002",
+    name: "Kanta Prasad",
+    email: "admin@babakadhaba.com",
+    password: "admin123",
+    role: "admin",
+    tenantId: "tenant-002",
+    tenantName: "Baba Ka Dhaba",
+    tenantLoginId: "Baba#91A",
   },
   {
     id: "user-chef-001",
@@ -25,6 +36,7 @@ export const mockUsers: AuthUser[] = [
     role: "chef",
     tenantId: "tenant-001",
     tenantName: "Grand Lotus Hotel",
+    tenantLoginId: "Lotus@7K2",
   },
   {
     id: "user-waiter-001",
@@ -34,5 +46,6 @@ export const mockUsers: AuthUser[] = [
     role: "waiter",
     tenantId: "tenant-001",
     tenantName: "Grand Lotus Hotel",
+    tenantLoginId: "Lotus@7K2",
   },
 ];

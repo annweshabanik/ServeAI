@@ -18,16 +18,28 @@ export interface LoginInput {
   password: string;
 }
 
+export interface SanitizedUser extends Omit<User, 'passwordHash'> {
+  tenantLoginId?: string;
+  tenantName?: string;
+}
+
 export interface AuthResult {
-  user: Omit<User, 'passwordHash'> & { tenantLoginId?: string };
+  user: SanitizedUser;
   token: string;
 }
 
-const sanitizeUser = (user: User, tenantLoginId?: string): Omit<User, 'passwordHash'> & { tenantLoginId?: string } => {
+const sanitizeUser = (
+  user: User & { tenant?: { name: string; loginId: string | null } | null },
+  tenantLoginId?: string,
+  tenantName?: string
+): SanitizedUser => {
   const { passwordHash, ...sanitized } = user;
+  const finalTenantName = tenantName || user.tenant?.name || undefined;
+  const finalTenantLoginId = tenantLoginId || user.tenant?.loginId || undefined;
   return {
     ...sanitized,
-    ...(tenantLoginId && { tenantLoginId }),
+    ...(finalTenantLoginId && { tenantLoginId: finalTenantLoginId }),
+    ...(finalTenantName && { tenantName: finalTenantName }),
   };
 };
 
@@ -70,36 +82,29 @@ export const loginUser = async (data: LoginInput): Promise<AuthResult> => {
 
   let user: User | null = null;
   let tenantLoginId: string | undefined = undefined;
+  let tenantName: string | undefined = undefined;
 
-  // 1. First attempt: Search by email (case-insensitive) if identifier contains '@'
-  if (rawIdentifier.includes('@')) {
-    user = await prisma.user.findUnique({
-      where: { email: rawIdentifier.toLowerCase() },
-    });
-  }
+  // 1. First attempt: Search tenant by unique loginId (e.g. "Lotus@7K2" or "Spice#91A")
+  const tenant = await prisma.tenant.findUnique({
+    where: { loginId: rawIdentifier },
+    include: {
+      users: true,
+    },
+  });
 
-  // 2. Second attempt: Search tenant by unique loginId (e.g. "Lotus@7K2" or "Spice#91A")
-  if (!user) {
-    const tenant = await prisma.tenant.findUnique({
-      where: { loginId: rawIdentifier },
-      include: {
-        users: true,
-      },
-    });
-
-    if (tenant) {
-      if (!tenant.isActive) {
-        throw new AppError('Tenant account is suspended. Please contact administrator.', 403);
-      }
-
-      tenantLoginId = tenant.loginId || undefined;
-      // Find admin user or primary user under this tenant
-      user = tenant.users.find((u) => u.role === Role.ADMIN) || tenant.users[0] || null;
+  if (tenant) {
+    if (!tenant.isActive) {
+      throw new AppError('Tenant account is suspended. Please contact administrator.', 403);
     }
+
+    tenantLoginId = tenant.loginId || undefined;
+    tenantName = tenant.name;
+    // Find admin user or primary user under this tenant
+    user = tenant.users.find((u) => u.role === Role.ADMIN) || tenant.users[0] || null;
   }
 
-  // 3. Third attempt: Fallback to exact user email match if first search skipped
-  if (!user && !rawIdentifier.includes('@')) {
+  // 2. Second attempt: Search user by email if not found via Tenant loginId
+  if (!user) {
     user = await prisma.user.findUnique({
       where: { email: rawIdentifier.toLowerCase() },
     });
@@ -109,7 +114,7 @@ export const loginUser = async (data: LoginInput): Promise<AuthResult> => {
     throw new AppError('Invalid login credentials.', 401);
   }
 
-  // If user belongs to a tenant, check if tenant is active
+  // If user belongs to a tenant, check if tenant is active and attach tenant info
   if (user.tenantId) {
     const userTenant = await prisma.tenant.findUnique({
       where: { id: user.tenantId },
@@ -119,6 +124,7 @@ export const loginUser = async (data: LoginInput): Promise<AuthResult> => {
         throw new AppError('Tenant property account is currently deactivated.', 403);
       }
       tenantLoginId = userTenant.loginId || undefined;
+      tenantName = userTenant.name;
     }
   }
 
@@ -129,12 +135,12 @@ export const loginUser = async (data: LoginInput): Promise<AuthResult> => {
 
   const token = signToken({ userId: user.id, role: user.role });
   return {
-    user: sanitizeUser(user, tenantLoginId),
+    user: sanitizeUser(user, tenantLoginId, tenantName),
     token,
   };
 };
 
-export const getUserProfile = async (userId: string): Promise<Omit<User, 'passwordHash'>> => {
+export const getUserProfile = async (userId: string): Promise<SanitizedUser> => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { tenant: true },
@@ -142,5 +148,5 @@ export const getUserProfile = async (userId: string): Promise<Omit<User, 'passwo
   if (!user) {
     throw new AppError('User not found.', 404);
   }
-  return sanitizeUser(user, user.tenant?.loginId || undefined);
+  return sanitizeUser(user, user.tenant?.loginId || undefined, user.tenant?.name || undefined);
 };

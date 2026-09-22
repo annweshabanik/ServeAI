@@ -85,7 +85,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             <button aria-label="Open navigation" onClick={() => setMobileOpen(true)} className="rounded-xl p-2 hover:bg-charcoal-50 lg:hidden"><MenuIcon className="size-5" /></button>
             <div>
-              <p className="text-sm font-black text-charcoal-950">Grand Lotus Hotel</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-black text-charcoal-950">
+                  {user?.tenantName || (user?.role === "superadmin" ? "ServeAI System Admin" : "Hotel POS Center")}
+                </p>
+                {user?.tenantLoginId ? (
+                  <span className="rounded-full bg-lime-100 px-2.5 py-0.5 text-xs font-black text-lime-900 border border-lime-300">
+                    ID: {user.tenantLoginId}
+                  </span>
+                ) : null}
+              </div>
               <p className="text-xs font-semibold text-charcoal-500">Live ordering command center</p>
             </div>
           </div>

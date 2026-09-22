@@ -51,6 +51,8 @@ export async function loginUser(identifier: string, password: string): Promise<S
         email: user.email,
         role: normalizedRole,
         tenantId: user.tenantId,
+        tenantName: user.tenantName || user.tenant?.name,
+        tenantLoginId: user.tenantLoginId || user.tenant?.loginId,
       };
 
       window.localStorage.setItem(USER_KEY, JSON.stringify(safeUser));
@@ -60,16 +62,21 @@ export async function loginUser(identifier: string, password: string): Promise<S
       notifyAuthChange();
       return safeUser;
     }
-  } catch (err) {
-    // Fallback to local demo users if backend is unreachable or not seeded
-    console.warn("Backend auth failed or unreachable, trying local fallback", err);
+  } catch (err: any) {
+    if (axios.isAxiosError(err) && err.response) {
+      const backendMessage = err.response.data?.message || err.response.data?.error || "Authentication failed";
+      throw new Error(backendMessage);
+    }
+    // Fallback to local demo users if backend is unreachable / network error
+    console.warn("Backend server unreachable, trying local fallback", err);
   }
 
   // 2. Local fallback check
   const candidate = mockUsers.find(
     (u) =>
       (u.email.toLowerCase() === identifier.trim().toLowerCase() ||
-       (u as any).loginId === identifier.trim()) &&
+       (u as any).loginId === identifier.trim() ||
+       u.tenantLoginId === identifier.trim()) &&
       u.password === password
   );
 
@@ -82,6 +89,7 @@ export async function loginUser(identifier: string, password: string): Promise<S
     role: candidate.role,
     tenantId: candidate.tenantId,
     tenantName: candidate.tenantName,
+    tenantLoginId: candidate.tenantLoginId,
   };
 
   window.localStorage.setItem(USER_KEY, JSON.stringify(safeUser));
